@@ -2,84 +2,65 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class keyPressMove : MonoBehaviour
+public class KeyPressMove : MonoBehaviour
 {
-    public GameObject fingerTip;
-
-    public handController handScript;
     public textInput searchText;
-
-    public bool thisKeyHit;
-    public float originalYPosition;
-
-    public bool keyReturning;
-
-    public double triggerDistance;
-
-    public float fingerTipHeight;
-
-    public float thisKeyHeight;
-
-    public float distanceBetween;
-
     public string thisCharacter;
+    
+    [Header("Hand Reference")]
+    public handController handScript; // <-- Added this back!
 
-    // Start is called before the first frame update
+    [Header("Key Visual Settings")]
+    public float maxDepressionDepth = 0.1f;
+    public float keyReturnSpeed = 15f;
+
+    private float originalYPosition;
+    private bool isPressed = false;
+    private Transform activeFinger = null;
+
     void Start()
     {
-        triggerDistance = 0.03;
-        thisKeyHit = false;
-        originalYPosition = gameObject.transform.position.y;
-        keyReturning = false;
-        distanceBetween = Vector3.Distance(fingerTip.transform.position, gameObject.transform.position);
+        originalYPosition = transform.position.y;
     }
 
-    // Update is called once per frame
     void Update()
     {
-        distanceBetween = Vector3.Distance(fingerTip.transform.position, gameObject.transform.position);
-        fingerTipHeight = fingerTip.transform.position.y;
-        thisKeyHeight = gameObject.transform.position.y;
-        if (gameObject.transform.position.y <= originalYPosition - 0.02 && handScript.falling == true)
+        if (isPressed && activeFinger != null)
         {
-            handScript.keyHitBottom = true;
-            keyReturning = true;
-            Debug.Log(1);
+            float targetY = Mathf.Clamp(activeFinger.position.y - 0.02f, originalYPosition - maxDepressionDepth, originalYPosition);
+            transform.position = new Vector3(transform.position.x, targetY, transform.position.z);
         }
-        else if  (
-                Vector3.Distance(fingerTip.transform.position, gameObject.transform.position) < triggerDistance 
-                && 
-                handScript.falling == true 
-                && 
-                thisKeyHit == false
-            )
+        else
         {
-            thisKeyHit = true;
-            handScript.keyHit = true;
-            Debug.Log(2);
+            Vector3 returnPos = new Vector3(transform.position.x, originalYPosition, transform.position.z);
+            transform.position = Vector3.Lerp(transform.position, returnPos, Time.deltaTime * keyReturnSpeed);
+        }
+    }
+
+    private void OnTriggerEnter(Collider other)
+    {
+        if (other.CompareTag("FingerTip") && !isPressed)
+        {
+            isPressed = true;
+            activeFinger = other.transform;
+
+            // 1. Tell the hand to instantly bounce back up
+            if (handScript != null)
+            {
+                handScript.ReboundHand();
+            }
+
+            // 2. Send the character to the search bar
             searchText.ControlSearchBar(thisCharacter);
         }
-        else if (   
-                    handScript.falling == true 
-                    && 
-                    thisKeyHit == true
-                    &&
-                    (fingerTip.transform.position.y - gameObject.transform.position.y) < 0.007f
-                )
+    }
+
+    private void OnTriggerExit(Collider other)
+    {
+        if (other.CompareTag("FingerTip") && isPressed)
         {
-            gameObject.transform.position = new Vector3(gameObject.transform.position.x, fingerTip.transform.position.y - 0.0062103f, gameObject.transform.position.z);
-            Debug.Log(3);
-        }
-        else if(handScript.falling == false && keyReturning == true && gameObject.transform.position.y >= originalYPosition && thisKeyHit == true)
-        {
-            keyReturning = false;
-            thisKeyHit = false;
-            Debug.Log(4);
-        }
-        else if(handScript.falling == false && keyReturning == true && gameObject.transform.position.y < originalYPosition && thisKeyHit == true)
-        {
-            gameObject.transform.position = new Vector3(gameObject.transform.position.x, gameObject.transform.position.y + 0.001f, gameObject.transform.position.z);
-            Debug.Log(5);
+            isPressed = false;
+            activeFinger = null;
         }
     }
 }

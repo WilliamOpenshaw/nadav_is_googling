@@ -1,124 +1,117 @@
 using System.Collections;
 using System.Collections.Generic;
-using Unity.VisualScripting.ReorderableList;
-using UnityEditor;
 using UnityEngine;
 
 public class handController : MonoBehaviour
 {
-
+    [Header("References")]
     public GameObject playerCamera;
-    public bool movingHand;
 
-    public bool falling;
+    [Header("Click Animation Settings")]
+    public float restingHeight = 0.577f;
+    public float minimumHeight = 0.540f; // <-- TWEAK THIS in the Inspector to fix the depth!
+    public float verticalSpeed = 0.002f;
 
-    public double cameraRotationY;
-
-    public double cameraRotationX;
+    [Header("Camera Tracking Limits")]
+    public float trackingSmoothing = 10f;
     
-    //public double cameraRotationYLocal;
+    // Hand X Limits (Left / Right)
+    public float handXMin = 1.1182f;
+    public float handXMax = 1.8104f;
+    
+    // Hand Z Limits (Forward / Backward)
+    public float handZMin = 1.1077f; 
+    public float handZMax = 1.3023f; 
 
-    //public double cameraRotationXLocal;
+    // State Variables
+    private bool movingHand = true;
+    private bool falling = false;
+    private float currentHeight;
 
-    public double handPositionX;
-
-    public double handPositionZ;
-
-    public double handHeight;
-
-    public bool keyHit;
-
-    public bool keyHitBottom;
-    // Start is called before the first frame update
     void Start()
     {
         movingHand = true;
-        keyHit = false;
-        handHeight = 0.577f;
-        keyHitBottom = false;
+        falling = false;
+        currentHeight = restingHeight;
     }
 
-    // Update is called once per frame
     void Update()
     {
-        ///*
-        if(Input.GetMouseButtonDown(0))
+        // Start the click animation when the mouse is pressed
+        if (Input.GetMouseButtonDown(0) && movingHand)
         {
             movingHand = false;
-            falling = true;   
-            keyHitBottom = false;      
+            falling = true;
         }
-        if(movingHand == false)
-        {
-            if (keyHitBottom == true || (handHeight <= 0.425f && falling == true && keyHit == false))
-            {
-                falling = false;
-                keyHit = false;
-                keyHitBottom = false;
-            }   
-            else if (falling == true && handHeight > 0.425f)
-            {
-                handHeight -= 0.002f;
-                gameObject.transform.position = new Vector3((float)handPositionX, (float)handHeight, (float)handPositionZ);
-            } 
-            else if (falling == false && handHeight < 0.577f)
-            {
-                handHeight += 0.002f;
-                gameObject.transform.position = new Vector3((float)handPositionX, (float)handHeight, (float)handPositionZ);
-            }         
-            else if (falling == false && keyHit == false)
-            {
-                movingHand = true;
-            }            
-        }
-        if(movingHand == true)
-        {
-            cameraRotationY = playerCamera.transform.eulerAngles.y;
-            cameraRotationX = playerCamera.transform.eulerAngles.x;
-            //cameraRotationYLocal = playerCamera.transform.localEulerAngles.y;
-            //cameraRotationXLocal = playerCamera.transform.localEulerAngles.x;
+    }
 
-            if(cameraRotationY >= 0 && cameraRotationY <= 180)
-            {
-                handPositionX = 1.1182 + ((1.8104 - 1.1182) * ((cameraRotationY + 22.5) / 45));
-            }
-            else
-            {
-                //handPositionX = 1.4643 - ((1.8104 - 1.1182) * ((cameraRotationY - 360) / 45));
-                handPositionX = 1.4643 - ((1.8104 - 1.1182) * ((360 - cameraRotationY) / 45));
-                //handPositionX = 1.4643 - ((1.8104 - 1.1182) * (45/ (cameraRotationY - 360)));
-            }
-
-            if(cameraRotationX < 35)
-            {
-                handPositionZ = 1.3023;
-            }
-            else if (cameraRotationX > 45)
-            {
-                handPositionZ = 1.1077;
-            }
-            else
-            {
-                handPositionZ = 1.3023 - ((1.3023 - 1.1077) * ((cameraRotationX - 35)/10));
-            }
-            
-            if(handPositionX > 0)
-            {
-                gameObject.transform.position = new Vector3 (   
-                                                            gameObject.transform.position.x + (((float)handPositionX - gameObject.transform.position.x)/10), 
-                                                            0.577f, 
-                                                            gameObject.transform.position.z + (((float)handPositionZ - gameObject.transform.position.z)/10)
-                                                        );
-            }
-            
+    void FixedUpdate()
+    {
+        if (!movingHand)
+        {
+            HandleClickAnimation();
         }
-        //camera y rotation between -22.5 (left) and 22.5 (right), x is between 35 (top) and 50 (bottom)
-        //hand left and right motion is between x 1.1182 (left) and 1.8104 (right)
-        //hand up and down motion is between z 1.3023 (top) and 1.1077 (bottom)
-        
-        //gameObject.transform.position = new Vector3(x, y, z);
-        //print(5);
-        //Debug.Log(gameObject.transform.position);
-        //*/
+        else
+        {
+            HandleCameraTracking();
+        }
+    }
+
+    private void HandleClickAnimation()
+    {
+        if (falling)
+        {
+            currentHeight -= verticalSpeed;
+            // Stop falling once we hit the new minimumHeight limit
+            if (currentHeight <= minimumHeight)
+            {
+                currentHeight = minimumHeight; 
+                falling = false; // Trigger the upward return
+            }
+        }
+        else // returning up
+        {
+            currentHeight += verticalSpeed;
+            if (currentHeight >= restingHeight)
+            {
+                currentHeight = restingHeight;
+                movingHand = true; // Done clicking, resume tracking
+            }
+        }
+
+        // Apply height position to the hand
+        transform.position = new Vector3(transform.position.x, currentHeight, transform.position.z);
+    }
+
+    private void HandleCameraTracking()
+    {
+        // 1. Get Camera Rotations
+        float camRotY = playerCamera.transform.eulerAngles.y;
+        float camRotX = playerCamera.transform.eulerAngles.x;
+
+        // Normalize Y rotation to range between -180 and 180 (Easier to do math with)
+        if (camRotY > 180f) camRotY -= 360f;
+
+        // 2. Calculate Target X (Left/Right)
+        // InverseLerp turns the -22.5 to 22.5 range into a percentage (0.0 to 1.0)
+        float percentX = Mathf.InverseLerp(-22.5f, 22.5f, camRotY);
+        float targetX = Mathf.Lerp(handXMin, handXMax, percentX);
+
+        // 3. Calculate Target Z (Up/Down)
+        float percentZ = Mathf.InverseLerp(35f, 45f, camRotX);
+        float targetZ = Mathf.Lerp(handZMax, handZMin, percentZ); // Notice Zmax and Zmin are swapped here to mimic your original inverted logic
+
+        // 4. Smoothly move the hand to the target X/Z position
+        Vector3 targetPos = new Vector3(targetX, restingHeight, targetZ);
+        transform.position = Vector3.Lerp(transform.position, targetPos, Time.fixedDeltaTime * trackingSmoothing);
+    }
+    // Add this to the bottom of handController.cs
+    public void ReboundHand()
+    {
+        // If the hand is currently going down, instantly make it go back up
+        if (falling)
+        {
+            falling = false;
+        }
     }
 }

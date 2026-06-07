@@ -6,6 +6,8 @@ using UnityEngine;
 public class textInput : MonoBehaviour
 {
     public TextMeshPro bartext;
+
+    public resultsController resultsScript;
     // Start is called before the first frame update
     void Start()
     {
@@ -20,6 +22,7 @@ public class textInput : MonoBehaviour
             if(bartext.text.Length > 0)
             {
                 bartext.text = bartext.text.Remove(bartext.text.Length - 1);
+                resultsScript.updateResults();
             }
         }
         else if (input == "space")
@@ -33,6 +36,7 @@ public class textInput : MonoBehaviour
         else
         {
             bartext.text += input;
+            resultsScript.updateResults();
         }
     }
 }

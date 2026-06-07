@@ -51,5 +51,5 @@
         "temp/": true,
         "Temp/": true
     },
-    "dotnet.defaultSolution": "nadav_is_googling.sln"
+    "dotnet.defaultSolution": "nadav_is_googling.slnx"
 }

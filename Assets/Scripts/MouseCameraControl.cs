@@ -10,7 +10,7 @@ public class MouseCameraControl : MonoBehaviour
     public float yClamp = 30f;
     public float xClamp = 30f;
 
-    void Update()
+    void FixedUpdate()
     {
         rotation.y += Input.GetAxis("Mouse X");
         rotation.x += -Input.GetAxis("Mouse Y");
